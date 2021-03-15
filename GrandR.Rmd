@@ -1,0 +1,215 @@
+---
+title: "GrandR"
+author: "David Failing"
+date: \today
+output: 
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE}
+library(tidyverse)
+
+library(readxl)
+
+library(tabulizer)
+
+```
+
+A goal of this project is to see if we can re-generate the classification of use-areas into 4 clusters, as given by the GCNP Backcountry Information site. A possibly complete list of use areas is at 
+https://grandcanyonbackcountryguide.com/backcountry_use_areas.html
+
+The list of use areas at https://www.nps.gov/grca/planyourvisit/campsite-information.htm describes the breakdown as follows: 
+
+>"Each use area has an overnight capacity based upon the size of the area, the number of suitable and available campsites, its ecological sensitivity, its management zoning, and its use history."
+
+"Corridor Zone Recommended for hikers without previous experience at Grand Canyon. Maintained trails. Purified water stations. Paved roads to trailheads. Toilets, signs, emergency phones, and ranger stations. Use of private livestock (horses and mules only) allowed only when specified on permit."
+
+"Threshold Zone Recommended for experienced Grand Canyon hikers. Non-maintained trails. Scarce water sources. Dirt roads to trailheads. Pit toilets. Use of private livestock (horses and mules only) allowed with permit only on Whitmore Trail and on designated roads and trails on the rim."
+
+"Primitive Zone** Recommended for highly experienced Grand Canyon hikers with proven route-finding ability. Non-maintained trails and routes. 4-wheel-drive roads to trailheads. Occasional signs. No other developments. Use of private livestock (horses and mules only) allowed with permit only on the Ken Patrick Trail to Uncle Jim Trail to Uncle Jim Point and on designated roads on the rim."
+
+"Wild Zone** Recommended for highly experienced Grand Canyon hikers with extensive route finding ability. Indistinct to non-existent routes require advanced route finding ability. Water sources scarce to non-existent. No other development. Use of private livestock is not allowed.
+
+** Primitive and Wild Zones are not recommended for use during summer months due to extreme high temperatures and the lack of reliable water sources."
+
+# Tables
+
+## Table - "Backcountry Use Areas And Codes"
+Pulled these from an Excel file on a web page: https://grandcanyonbackcountryguide.com/backcountry_use_areas.html
+
+From that site: "Use Areas and their corresponding codes are the means by which the Grand Canyon Backcountry Office determines how many people will be in which sections of the Park on any given night. "Use Areas" are short descriptive names for the specific sections of the Park, and each Use Area has a corresponding "Code" comprised of either three alpha characters or two alpha characters and one digit. Each Use Area has a limit on the number of people that can be camped there on any given night. The National Park Service has based these limits on assessments of the ability of each area to tolerate human traffic, with the primary intent to protect and preserve the Park for future visitors.
+
+Backcountry Permits are issued based on each night spent in the Canyon. Technically, this includes day hikes that will end after dark. The permitting process requires each trip leader to identify where their group or party plan to spend the night during the trip by Use Area/Code. Note that several Use Areas are on Native American tribal lands. Additional permits are required for these areas. Access to some trailheads also requires passage through tribal lands and this may also require a permit or entry fee. While Use Areas are included in the list below, it is easier to start with a map that depicts the various Use Areas by Code."
+
+```{r, message = FALSE, warning = FALSE}
+
+# Use Areas given in the Sky Terrain topo map.
+BST <- c("NA1", "SA9", "SB9", "AJ9", "AF9", "BG9", "BC9", "BE9", "BF5", "BA9",
+         "BD9", "BB9", "AG9", "AH9", "NA0", "BN9", "CBG", "AK9", "CCG", "BJ9",
+         "SC9", "BH9", "AL9", "BM7", "BM8", "CIG", "NC9", "BL6", "BL8", "BL4",
+         "BL7", "BL5", "NG9", "AP9", "NH1", "AQ9", "NF9")
+
+
+Backcountry_Use_Areas <- readxl::read_excel("data/Backcountry_Use_Areas.xls")
+
+# TO COME: Use Areas given in the NatGeo Topo Maps x3
+Backcountry_Use_Areas <- Backcountry_Use_Areas %>%
+  setNames( c("use_area", "use_area_name", "management_zone", "no_of_groups", 
+           "and_or", "no_of_parties", "people_max", "camp_type")) %>%
+  # recode starred use_area as permit, then remove *
+  mutate(navajo_permit = if_else(grepl("\\*", use_area), "Y", "N")) %>%
+  # relocate(navajo_permit, .after = use_area) %>%
+  mutate(use_area = gsub("\\*", "", use_area)) %>%
+  # Note which use areas are on the Sky Terrain topo map.
+  mutate(sky_terrain = if_else(use_area %in% BST, "Y", "N"))
+
+  write.csv(Backcountry_Use_Areas, 
+          file = "data_cleaned/Backcountry_Use_Areas_And_Codes.csv",
+          row.names = FALSE)
+# Clean up after yourself
+rm(BST)
+
+```
+
+## Table - "Backcountry Use Area Details for [Year]"
+```{r, message = FALSE, warning = FALSE}
+# Use tabulizer::locate_areas() to get graphical location of desired columns.
+# areas are specified a2 <- list(c(126, 149, 212, 462), c(126, 284, 174, 417))
+# in this case for multiple pages, or a list of 1 vector that recycles.
+
+## Ingest data for 2017
+out_2017 <- tabulizer::extract_tables(
+  file = "data/Backcountry_and_River_Use_Statistics_2017.pdf", 
+  pages = 20:22, method = "lattice")
+
+table_2017 <- data.frame(rbind(out_2017[[1]][-1, ], 
+                               out_2017[[2]][-1, ],
+                               out_2017[[3]][-1, ])) %>%
+  setNames(out_2017[[1]][1,]) %>%
+  mutate_at(names(.)[-1], as.numeric)
+
+write.csv(table_2017, 
+          file = "data_cleaned/Backcountry-Use-Area-Details-2017.csv", 
+          row.names = FALSE)
+
+
+## Ingest data for 2018
+out_2018 <- tabulizer::extract_tables(
+  file = "data/Backcountry_and_River_Use_Statistics_2018.pdf", 
+  pages = 24:27, method = "lattice")
+
+# QUESTIONS 2018
+# Why are the People and Permits columns given with asterisks?
+# What does XXX mean?
+table_2018 <- data.frame(rbind(out_2018[[1]][-1, ], 
+                               out_2018[[2]][-1, ],
+                               out_2018[[3]][-1, ],
+                               out_2018[[4]][-c(1,12), ])) %>%
+  setNames(out_2017[[1]][1,]) %>% # Same names as 2017 table for consistency
+  mutate_at(names(.)[-1], as.numeric)
+
+# OBSERVATION: Total row disagrees on:stock, stock_unights
+#               user_nights (fine if XXX left out),
+# apply(table_2018[-1], 2, sum)
+# out_2018[[4]][12,]
+
+write.csv(table_2018, 
+          file = "data_cleaned/Backcountry-Use-Area-Details-2018.csv", 
+          row.names = FALSE)
+
+
+## Ingest data for 2019
+out_2019 <- tabulizer::extract_tables(
+  file = "data/Backcountry_and_River_Use_Statistics_2019.pdf", 
+  pages = 25:28, method = "lattice")
+
+# QUESTIONS 2019
+# Why are the People and Permits columns given with asterisks?
+# What does XXC and XXT mean?
+table_2019 <- data.frame(rbind(out_2019[[1]][-c(1,2), ], 
+                               out_2019[[2]][-c(1,2), ],
+                               out_2019[[3]][-c(1,2), ],
+                               out_2019[[4]][-c(1,2,13), ])) %>%
+  setNames(out_2017[[1]][1,]) %>%
+  mutate_at(names(.)[-1], as.numeric)
+
+# OBSERVATION: The disagreements between
+# apply(table_2019[-1], 2, sum)
+# all.equal(as.numeric(apply(table_2019[-1], 2, sum)), 
+#           as.numeric(out_2019[[4]][13,-1]))
+
+ 
+write.csv(table_2019, 
+          file = "data_cleaned/Backcountry-Use-Area-Details-2019.csv",
+          row.names = FALSE)
+
+## Ingest data for 2020
+corners <- list(c(140, 9, 536, 708),
+                c(80, 3, 544, 715),
+                c(80, 3, 567, 715),
+                c(80, 3, 194, 715))
+column_list <- list(c(40, 270, 320, 370, 430, 480, 530, 600, 650, 700))
+
+# NOTE: To use columns argument, guess = FALSE must be set
+out_2020 <- tabulizer::extract_tables(
+  file = "data/Backcountry_and_River_Use_Statistics_2020.pdf", 
+  area = corners, columns = column_list,
+  pages = 22:25, method = "lattice", guess = FALSE)
+
+# QUESTIONS 2020
+# Why are the People and Permits columns given with asterisks?
+# A: Given on p25. They can double-count
+# What does XXC and XXT mean?
+# A: Given on p25. They are administrative use. Can safely discard for my analysis.
+
+table_2020 <- data.frame(rbind(out_2020[[1]][, -2], 
+                               out_2020[[2]][, -2], 
+                               out_2020[[3]][, -2],  # This page OK
+                               out_2020[[4]][, -2])) %>% # This page OK
+  setNames(out_2017[[1]][1,]) %>%
+  mutate_at(names(.)[-1], as.numeric)
+
+# OBSERVATION: The disagreements between
+# apply(table_2019[-1], 2, sum)
+# all.equal(as.numeric(apply(table_2019[-1], 2, sum)), 
+#           as.numeric(out_2019[[4]][13,-1]))
+ 
+ 
+write.csv(table_2020, 
+          file = "data_cleaned/Backcountry-Use-Area-Details-2020.csv", 
+          row.names = FALSE)
+
+
+# Clean up when done - add "table_" if this is made a script, uncomment below
+#rm(paste0(c("out_", "table_"), rep(2017:2020, times = rep(2, 4))))
+#rm(list = paste0(c("out_"), rep(2017:2020, times = rep(1, 4))))
+rm(column_list, corners)
+```
+
+What are the sites that don't appear each year? Which ones are in the yearly stats but not in the Excel?
+
+```{r, message = FALSE, warning = FALSE}
+# 74 in, 19 not
+table_2017[!table_2017$use_area %in% Backcountry_Use_Areas$use_area, "use_area"]
+
+# 71 in, 23 not
+table_2018[!table_2018$use_area %in% Backcountry_Use_Areas$use_area, "use_area"]
+
+# 74 in, 20 not
+table_2019[!table_2019$use_area %in% Backcountry_Use_Areas$use_area, "use_area"]
+
+# 75 in, 18 not
+table_2020[!table_2020$use_area %in% Backcountry_Use_Areas$use_area, "use_area"]
+
+# NEED TO MIMIC SOMETHING LIKE THIS TO START TO FILL IN THE GAPS IN 
+# Backcountry_Use_Areas table
+# View(out_2020[[1]][out_2020[[1]][,1] %in% table_2020[!table_2020$use_area %in% Backcountry_Use_Areas$use_area, "use_area"],1:2])
+```
+
+```{r, message = FALSE, warning = FALSE}
+# 99 distinct use_area codes
+sort(unique(rbind(table_2017, table_2018, table_2019, table_2020)$use_area))
+# XXC, XXT, XXX, YUR seem to be 
+```
+
