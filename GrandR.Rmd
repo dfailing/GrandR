@@ -7,7 +7,7 @@ output:
     latex_engine: xelatex
 ---
 
-```{r, message = FALSE, warning = FALSE, echo = FALSE}
+```{r setup, message = FALSE, warning = FALSE, echo = FALSE}
 library(tidyverse)
 
 library(readxl)
@@ -52,8 +52,11 @@ BST <- c("NA1", "SA9", "SB9", "AJ9", "AF9", "BG9", "BC9", "BE9", "BF5", "BA9",
 
 
 Backcountry_Use_Areas <- readxl::read_excel("data/Backcountry_Use_Areas.xls")
+```
 
+```{r}
 # TO COME: Use Areas given in the NatGeo Topo Maps x3
+
 Backcountry_Use_Areas <- Backcountry_Use_Areas %>%
   setNames( c("use_area", "use_area_name", "management_zone", "no_of_groups", 
            "and_or", "no_of_parties", "people_max", "camp_type")) %>%
@@ -73,6 +76,14 @@ rm(BST)
 ```
 
 ## Table - "Backcountry Use Area Details for [Year]"
+
+<!-- NOTE -->
+<!-- 2016 in plots at: -->
+<!-- https://www.nps.gov/grca/planyourvisit/upload/River_Stats_2016_Update.pdf -->
+
+<!-- 2015 in plots at: -->
+<!-- https://www.nps.gov/grca/planyourvisit/upload/River_Stats_2015_Update.pdf -->
+
 ```{r, message = FALSE, warning = FALSE}
 # Use tabulizer::locate_areas() to get graphical location of desired columns.
 # areas are specified a2 <- list(c(126, 149, 212, 462), c(126, 284, 174, 417))
@@ -213,3 +224,6 @@ sort(unique(rbind(table_2017, table_2018, table_2019, table_2020)$use_area))
 # XXC, XXT, XXX, YUR seem to be 
 ```
 
+# FUTURE POTENTIAL ISSUES
+* https://www.bobspixels.com/kaibab.org/bc/gc_use.htm lists areas that are for day use only
+* 2020 had some major restrictions noted in the report
